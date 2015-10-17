@@ -33,19 +33,61 @@ namespace EditorChanges
             if (this.current.Version.VersionNumber != change.BeforeVersion.VersionNumber)
                 Initialize(change.After);
             else
-                UpdateCore(change);
+                UpdateCore(change.Before, change);
         }
 
-        void UpdateCore(TextContentChangedEventArgs change)
+        void UpdateCore(ITextSnapshot old, TextContentChangedEventArgs change)
         {
             this.current = change.After;
             foreach (ITextChange tc in change.Changes)
-                ApplyChange(tc);
+                ApplyChange(old, tc);
         }
 
-        void ApplyChange(ITextChange change)
+        void ApplyChange(ITextSnapshot oldSnapshot, ITextChange change)
         {
-            int realChangeStartLineIndex = LineContaining(change.NewPosition);
+            var invalid = GetInvalidated(oldSnapshot, change);
+            lexer(change.NewText);
+            //var newTokens = 
+            /*
+            int oldSpanEnd = CoveringTokenEnd(change.NewEnd);
+            int realChangeStartLineIndex = FirstCoveringTokenLineIndex(change.NewPosition);
+            int realStart = GetRealStart(lines[realChangeStartLineIndex]);
+            string firstparse = current.GetText(realStart, oldSpanEnd - realStart);
+            */
+        }
+
+        public LineSpan GetInvalidated(ITextSnapshot oldSnapshot, ITextChange change)
+        {
+            int endLineNumber = FirstCoveringTokenLineIndex(oldSnapshot, change.OldEnd);
+            int end;
+            if (lines[endLineNumber].IsEmpty)
+                end = 0;
+            else
+                end = lines[endLineNumber].GetContainingIndex(current, Math.Max(0, change.OldEnd - 1));
+            int realChangeStartLineIndex = FirstCoveringTokenLineIndex(current, change.NewPosition);
+            return new LineSpan
+            {
+                StartLine = realChangeStartLineIndex,
+                EndLine = endLineNumber,
+                EndTokenIndex = end
+            };
+        }
+
+        private int GetRealStart(LexedLine lexedLine)
+        {
+            if (lexedLine.IsEmpty)
+                return 0;
+            return lexedLine.GetTokenStart(current);
+        }
+
+        IEnumerable<MultilineSpannedToken> TokenizeLines(int start)
+        {
+            int currentLine = start;
+            while (currentLine < current.LineCount)
+            {
+                string line = current.GetLineFromLineNumber(currentLine++).GetTextIncludingLineBreak();
+
+            }
         }
 
         // Since the tokens can be multiline, some lines will contain no tokens. eg.
@@ -54,9 +96,9 @@ namespace EditorChanges
         // 3: */ let x = 1;
         // in this case line 2 contains no tokens, so we have to go back
         // and find the first non-empty line
-        int LineContaining(int pos)
+        int FirstCoveringTokenLineIndex(ITextSnapshot snap, int pos)
         {
-            int curr = current.GetLineNumberFromPosition(pos);
+            int curr = snap.GetLineNumberFromPosition(pos);
             // In the face of multi-line tokens we are not guaranteed that
             // the first token in the line starts at the start of the line.
             // Eg. in the above example the first token in the line 3
@@ -77,17 +119,6 @@ namespace EditorChanges
                 return true;
             int absLineStart = line.GetStart(current);
             return absPos - absLineStart >= line.Tokens[0].Span.Start;
-        }
-
-        private Range LinesRange(ITextSnapshot change, Span span)
-        {
-            int start = current.GetLineNumberFromPosition(span.Start);
-            int end = current.GetLineNumberFromPosition(span.End);
-            return new Range
-            {
-                Start = start,
-                Count = end - start + 1
-            };
         }
 
         IEnumerable<string> GetLines(int startLine, int count)

@@ -52,7 +52,9 @@
     <Compile Include="IEnumerableExtensions.cs" />
     <Compile Include="LexedDocument.cs" />
     <Compile Include="LexedLine.cs" />
+    <Compile Include="LineSpan.cs" />
     <Compile Include="MultilineSpannedToken.cs" />
+    <Compile Include="IOnDemandEnumerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Range.cs" />
     <Compile Include="SpannedToken.cs" />

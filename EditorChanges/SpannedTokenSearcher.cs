@@ -12,7 +12,7 @@ namespace EditorChanges
 
         public int Compare(SpannedToken x, SpannedToken y)
         {
-            if(x.Span.OverlapsWith(y.Span))
+            if(x.Span.Contains(y.Span.Start))
                 return 0;
             return x.Span.Start.CompareTo(y.Span.Start);
         }

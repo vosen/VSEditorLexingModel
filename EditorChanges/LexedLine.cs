@@ -29,20 +29,26 @@ namespace EditorChanges
 
         public bool IsEmpty { get { return start == null; } }
 
-        internal SpannedToken GetContaining(ITextSnapshot snap, int absolutePosition)
+        internal int GetContainingIndex(ITextSnapshot snap, int absolutePosition)
         {
             int absoluteStart = start.GetPosition(snap);
             int relativePosition = absolutePosition - absoluteStart;
-            int tokenIdx =  Array.BinarySearch<SpannedToken>(
+            if (Tokens[0].Span.End > relativePosition)
+                return 0;
+            return Array.BinarySearch<SpannedToken>(
                 Tokens,
                 new SpannedToken(0, new Span(relativePosition, 0)),
                 SpannedTokenOverlapComparer.Instance);
-            return Tokens[tokenIdx];
         }
 
         internal int GetStart(ITextSnapshot snaps)
         {
             return start.GetPosition(snaps);
+        }
+
+        internal int GetTokenStart(ITextSnapshot snaps)
+        {
+            return Tokens[0].Span.Start + GetStart(snaps);
         }
     }
 }
