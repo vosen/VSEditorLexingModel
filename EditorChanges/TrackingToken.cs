@@ -23,6 +23,8 @@ namespace EditorChanges
         public int Length;
         public int Type;
 
+        public bool IsEmpty { get { return Start == null; } }
+
         internal TrackingToken(ITextSnapshot snapshot, SpannedToken arg) : this()
         {
             Start = snapshot.CreateTrackingPoint(arg.Span.Start, PointTrackingMode.Negative);
@@ -39,6 +41,21 @@ namespace EditorChanges
         public Span GetSpan(ITextSnapshot snap)
         {
             return new Span(Start.GetPosition(snap), Length);
+        }
+
+        public int GetStart(ITextSnapshot snap)
+        {
+            return Start.GetPosition(snap);
+        }
+
+        public int GetEnd(ITextSnapshot snap)
+        {
+            return Start.GetPosition(snap) + Length;
+        }
+
+        public string GetText(ITextSnapshot snap)
+        {
+            return snap.GetText(GetSpan(snap));
         }
     }
 

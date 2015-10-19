@@ -60,5 +60,22 @@ namespace Tests
             var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
             Assert.AreEqual(1, invalid.Count());
         }
+
+        [Test]
+        public void ReplaceMidTokens()
+        {
+            var buffer = new MockTextBuffer("ab  cd  ", (string)null);
+            var snapshot = buffer.CurrentSnapshot;
+            var doc = new LexedDocument(Lexer.Run, snapshot);
+            buffer.Replace(new Span(1, 4), "bc");
+            doc.ApplyVersion(buffer.CurrentSnapshot);
+            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
+            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
+            Assert.AreEqual(3, invalid.Count());
+            var newTokens = doc.Rescan(snapshot, invalid);
+            Assert.AreEqual(1, newTokens.Count);
+            Assert.AreEqual(0, newTokens[0].GetStart(buffer.CurrentSnapshot));
+            Assert.AreEqual(4, newTokens[0].Length);
+        }
     }
 }

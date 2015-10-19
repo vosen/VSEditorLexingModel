@@ -13,7 +13,7 @@ namespace Tests
     {
         internal static IEnumerable<SpannedToken> Run(IEnumerable<string> arg)
         {
-            return RunInternal(arg.First());
+            return RunInternal(String.Join("", arg));
         }
 
         static IEnumerable<SpannedToken> RunInternal(string text)

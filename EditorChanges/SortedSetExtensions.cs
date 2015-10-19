@@ -9,15 +9,16 @@ namespace EditorChanges
 {
     static class SortedSetExtensions
     {
-        static public IEnumerable<TrackingToken> CoveringTokens(this SortedSet<TrackingToken> tree, ITextSnapshot version, Span span)
+
+        static public IList<TrackingToken> CoveringTokens(this SortedSet<TrackingToken> tree, ITextSnapshot version, Span span)
         {
             List<TrackingToken> tokens = new List<TrackingToken>();
-            if(tree.Root != null)
+            if (tree.Root != null)
                 FillCoveringTokens(tree.Root, version, span, tokens);
             return tokens;
         }
 
-        private static void FillCoveringTokens(SortedSet<TrackingToken>.Node current, ITextSnapshot version, Span span, List<TrackingToken> tokens)
+        static void FillCoveringTokens(SortedSet<TrackingToken>.Node current, ITextSnapshot version, Span span, List<TrackingToken> tokens)
         {
             var currentSpan = current.Item.GetSpan(version);
             if (current.Left != null && span.Start <= currentSpan.Start)
@@ -30,11 +31,69 @@ namespace EditorChanges
 
         static bool RightInclusiveOverlap(Span current, Span span)
         {
-            if(span.End >= current.End)
+            if (span.End >= current.End)
                 return span.Start <= current.End;
-            if(span.Start <= current.Start)
+            if (span.Start <= current.Start)
                 return span.End > current.Start;
             return true;
+        }
+
+
+        internal static IEnumerable<TrackingToken> InOrderAfter(this SortedSet<TrackingToken> tree, ITextSnapshot version, int start)
+        {
+            // search first
+            SortedSet<TrackingToken>.Node current = tree.Root;
+            if (tree.Root == null)
+                yield break;
+            Stack<SortedSet<TrackingToken>.Node> stack = new Stack<SortedSet<TrackingToken>.Node>(2 * (SortedSet<TrackingToken>.log2(tree.Count + 1)));
+            // find exact
+            while (true)
+            {
+                Span currentSpan = current.Item.GetSpan(version);
+                if (currentSpan.Contains(start))
+                    break;
+                else if (start < currentSpan.Start)
+                    current = current.Left;
+                else
+                    current = current.Right;
+                stack.Push(current);
+            }
+            // yield next
+            while(true)
+            {
+                current = Next(current, stack);
+                if (current == null)
+                    break;
+                yield return current.Item;
+            }
+        }
+
+        static SortedSet<TrackingToken>.Node Next(SortedSet<TrackingToken>.Node current, Stack<SortedSet<TrackingToken>.Node> parents)
+        {
+            if (current.Right != null)
+                return Minimum(current.Right, parents);
+            return PopUntilLeftChild(current, parents);
+        }
+
+        static SortedSet<TrackingToken>.Node Minimum(SortedSet<TrackingToken>.Node current, Stack<SortedSet<TrackingToken>.Node> parents)
+        {
+            while (current.Left != null)
+            {
+                parents.Push(current);
+                current = current.Left;
+            }
+            return current;
+        }
+
+        static SortedSet<TrackingToken>.Node PopUntilLeftChild(SortedSet<TrackingToken>.Node current, Stack<SortedSet<TrackingToken>.Node> parents)
+        {
+            while (parents.Count > 0)
+            {
+                var parent = parents.Pop();
+                if (current == parent.Left)
+                    return parent;
+            }
+            return null;
         }
     }
 }
