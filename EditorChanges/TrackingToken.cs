@@ -32,12 +32,6 @@ namespace EditorChanges
             Type = arg.Type;
         }
 
-        public bool Contains(ITextSnapshot snap, int pos)
-        {
-            int realStart = Start.GetPosition(snap);
-            return realStart >= pos && realStart + Length < pos;
-        }
-
         public Span GetSpan(ITextSnapshot snap)
         {
             return new Span(Start.GetPosition(snap), Length);

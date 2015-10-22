@@ -64,7 +64,8 @@ namespace Tests
                 current = text[idx];
             }
             while (current != '*' || text[idx+1] != '/');
-            idx +=2 ;
+            if(idx < text.Length)
+                idx += 2;
             return new SpannedToken(3, new Span(start, idx - start));
         }
 

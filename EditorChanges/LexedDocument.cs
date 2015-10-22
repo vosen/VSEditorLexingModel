@@ -30,26 +30,48 @@ namespace EditorChanges
             return tree.CoveringTokens(oldSnapshot, change.OldSpan);
         }
 
-        public IList<TrackingToken> Rescan(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid)
+        public IList<TrackingToken> Rescan(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
         {
-            int invalidTokensStart = invalid[0].GetStart(oldSnapshot);
-            Span invalidSpan = new Span(invalidTokensStart, invalid[invalid.Count - 1].GetEnd(comparer.Version) - invalidTokensStart);
-            string initialText = comparer.Version.GetText(invalidSpan);
-            TrackingToken lastConsumed = new TrackingToken();
+            Span invalidatedSpan = InvalidatedSpan(oldSnapshot, invalid, delta);
+            string invalidatedText = comparer.Version.GetText(invalidatedSpan);
+            return RescanCore(invalidatedSpan, invalidatedText);
+        }
+
+        private IList<TrackingToken> RescanCore(Span invalidatedSpan, string invalidatedText)
+        {
+            int end = 0;
             List<TrackingToken> rescanned = new List<TrackingToken>();
-            foreach(var token in  lexer(new string[] { initialText }.Concat(tree.InOrderAfter(comparer.Version, invalidSpan.End).Select(t =>
-            {
-                lastConsumed = t;
-                return t.GetText(comparer.Version);
-            }))))
+            // this lazy iterator walks tokens that are outside of the initial invalidation span
+            var excessText = tree.InOrderAfter(comparer.Version, invalidatedSpan.End).Select(t => GetTextAndMarkEnd(t, ref end));
+            var tokens = lexer(new string[] { invalidatedText }.Concat(excessText));
+            foreach (var token in tokens)
             {
                 rescanned.Add(new TrackingToken(comparer.Version, token));
-                if (token.Span.End == invalidSpan.End)
-                    break;
-                if (!lastConsumed.IsEmpty && token.Span.End == lastConsumed.GetEnd(comparer.Version))
+                if (token.Span.End == invalidatedSpan.End || token.Span.End == end)
                     break;
             }
             return rescanned;
+        }
+
+        private string GetTextAndMarkEnd(TrackingToken current, ref int end)
+        {
+            end = current.GetEnd(comparer.Version);
+            return current.GetText(comparer.Version);
+        }
+
+        private Span InvalidatedSpan(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
+        {
+            int invalidationStart = invalid[0].GetStart(oldSnapshot); // this position is the same in both versions
+            int invalidationEnd = GetInvalidationEnd(oldSnapshot, invalid, delta);
+            return new Span(invalidationStart, invalidationEnd - invalidationStart);
+        }
+
+        private int GetInvalidationEnd(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
+        {
+            var oldSpan = invalid[invalid.Count - 1].GetSpan(oldSnapshot);
+            var newSpan = invalid[invalid.Count - 1].GetSpan(comparer.Version);
+            var tokenStartDelta = newSpan.Start - oldSpan.Start;
+            return newSpan.End + delta - tokenStartDelta;
         }
 
         public void ApplyVersion(ITextSnapshot currentSnapshot)

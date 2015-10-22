@@ -51,12 +51,21 @@ namespace EditorChanges
             {
                 Span currentSpan = current.Item.GetSpan(version);
                 if (currentSpan.Contains(start))
+                {
+                    if(currentSpan.Start == start)
+                        yield return current.Item;
                     break;
+                }
                 else if (start < currentSpan.Start)
+                {
+                    stack.Push(current);
                     current = current.Left;
+                }
                 else
+                {
+                    stack.Push(current);
                     current = current.Right;
-                stack.Push(current);
+                }
             }
             // yield next
             while(true)
@@ -71,7 +80,10 @@ namespace EditorChanges
         static SortedSet<TrackingToken>.Node Next(SortedSet<TrackingToken>.Node current, Stack<SortedSet<TrackingToken>.Node> parents)
         {
             if (current.Right != null)
+            {
+                parents.Push(current);
                 return Minimum(current.Right, parents);
+            }
             return PopUntilLeftChild(current, parents);
         }
 
@@ -92,6 +104,7 @@ namespace EditorChanges
                 var parent = parents.Pop();
                 if (current == parent.Left)
                     return parent;
+                current = parent;
             }
             return null;
         }
