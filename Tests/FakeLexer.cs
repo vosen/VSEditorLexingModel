@@ -10,10 +10,10 @@ namespace Tests
 {
     class FakeLexer
     {
-        internal static Func<IEnumerable<string>, IEnumerable<SpannedToken>> FromSpans(IEnumerable<Span> prepared)
+        internal static Func<IEnumerable<string>, int, IEnumerable<SpannedToken>> FromSpans(IEnumerable<Span> prepared)
         {
             var temp = prepared.Select(x => new SpannedToken(0, x)).ToArray();
-            return  _ => temp;
+            return  (_, __) => temp;
         }
     }
 }

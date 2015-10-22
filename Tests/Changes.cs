@@ -127,5 +127,22 @@ namespace Tests
             Assert.AreEqual(14, newTokens[3].GetStart(buffer.CurrentSnapshot));
             Assert.AreEqual(2, newTokens[3].Length);
         }
+
+        [Test]
+        public void ChangeMiddleOfToken()
+        {
+            var buffer = new MockTextBuffer("ab  cd  ef  ", (string)null);
+            var snapshot = buffer.CurrentSnapshot;
+            var doc = new LexedDocument(Lexer.Run, snapshot);
+            buffer.Replace(new Span(5, 0), "z");
+            doc.ApplyVersion(buffer.CurrentSnapshot);
+            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
+            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
+            Assert.AreEqual(1, invalid.Count());
+            var newTokens = doc.Rescan(snapshot, invalid, args.Changes.First().Delta);
+            Assert.AreEqual(1, newTokens.Count);
+            Assert.AreEqual(4, newTokens[0].GetStart(buffer.CurrentSnapshot));
+            Assert.AreEqual(3, newTokens[0].Length);
+        }
     }
 }

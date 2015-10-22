@@ -11,12 +11,12 @@ namespace Tests
 {
     static class Lexer
     {
-        internal static IEnumerable<SpannedToken> Run(IEnumerable<string> arg)
+        internal static IEnumerable<SpannedToken> Run(IEnumerable<string> arg, int offset)
         {
-            return RunInternal(String.Join("", arg));
+            return RunInternal(String.Join("", arg), offset);
         }
 
-        static IEnumerable<SpannedToken> RunInternal(string text)
+        static IEnumerable<SpannedToken> RunInternal(string text, int offset)
         {
             int idx = 0;
             char current;
@@ -24,22 +24,22 @@ namespace Tests
             {
                 current = text[idx];
                 if (current == '\n')
-                    yield return ConsumeNewline(ref idx);
+                    yield return ConsumeNewline(offset, ref idx);
                 else if (char.IsWhiteSpace(current))
-                    yield return ConsumeWhiteSpace(text, ref idx);
+                    yield return ConsumeWhiteSpace(text, offset, ref idx);
                 else if (current == '/' && text[idx + 1] == '*')
-                    yield return ConsumeComments(text, ref idx);
+                    yield return ConsumeComments(text, offset, ref idx);
                 else
-                    yield return ConsumeToken(text, ref idx);
+                    yield return ConsumeToken(text, offset, ref idx);
             }
         }
 
-        private static SpannedToken ConsumeNewline(ref int idx)
+        private static SpannedToken ConsumeNewline(int offset, ref int idx)
         {
-            return new SpannedToken(1, new Span(idx++, 1));
+            return new SpannedToken(1, new Span(offset + idx++, 1));
         }
 
-        private static SpannedToken ConsumeWhiteSpace(string text, ref int idx)
+        private static SpannedToken ConsumeWhiteSpace(string text, int offset, ref int idx)
         {
             int start = idx;
             char current;
@@ -50,10 +50,10 @@ namespace Tests
                 current = text[idx];
             }
             while (current != '\n' && char.IsWhiteSpace(current));
-            return new SpannedToken(2, new Span(start, idx - start));
+            return new SpannedToken(2, new Span(start + offset, idx - start));
         }
 
-        private static SpannedToken ConsumeComments(string text, ref int idx)
+        private static SpannedToken ConsumeComments(string text, int offset, ref int idx)
         {
             int start = idx;
             char current;
@@ -63,13 +63,13 @@ namespace Tests
                     break;
                 current = text[idx];
             }
-            while (current != '*' || text[idx+1] != '/');
-            if(idx < text.Length)
+            while (current != '*' || text[idx + 1] != '/');
+            if (idx < text.Length)
                 idx += 2;
-            return new SpannedToken(3, new Span(start, idx - start));
+            return new SpannedToken(3, new Span(start + offset, idx - start));
         }
 
-        private static SpannedToken ConsumeToken(string text, ref int idx)
+        private static SpannedToken ConsumeToken(string text, int offset, ref int idx)
         {
             int start = idx;
             char current;
@@ -80,7 +80,7 @@ namespace Tests
                 current = text[idx];
             }
             while (!char.IsWhiteSpace(current));
-            return new SpannedToken(4, new Span(start, idx - start));
+            return new SpannedToken(4, new Span(start + offset, idx - start));
         }
     }
 }

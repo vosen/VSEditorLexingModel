@@ -11,9 +11,9 @@ namespace EditorChanges
     {
         readonly TrackingToken.NonOverlappingComparer comparer = new TrackingToken.NonOverlappingComparer();
         SortedSet<TrackingToken> tree;
-        readonly Func<IEnumerable<string>, IEnumerable<SpannedToken>> lexer;
+        readonly Func<IEnumerable<string>, int, IEnumerable<SpannedToken>> lexer;
 
-        public LexedDocument(Func<IEnumerable<string>, IEnumerable<SpannedToken>> lexer, ITextSnapshot snapshot)
+        public LexedDocument(Func<IEnumerable<string>, int, IEnumerable<SpannedToken>> lexer, ITextSnapshot snapshot)
         {
             this.lexer = lexer;
             comparer.Version = snapshot;
@@ -22,7 +22,7 @@ namespace EditorChanges
 
         private void Initialize()
         {
-            tree = new SortedSet<TrackingToken>(lexer(new string[] { comparer.Version.GetText() }).Select(t => new TrackingToken(comparer.Version, t)), comparer);
+            tree = new SortedSet<TrackingToken>(lexer(new string[] { comparer.Version.GetText() }, 0).Select(t => new TrackingToken(comparer.Version, t)), comparer);
         }
 
         public IList<TrackingToken> GetInvalidated(ITextSnapshot oldSnapshot, ITextChange change)
@@ -43,7 +43,7 @@ namespace EditorChanges
             List<TrackingToken> rescanned = new List<TrackingToken>();
             // this lazy iterator walks tokens that are outside of the initial invalidation span
             var excessText = tree.InOrderAfter(comparer.Version, invalidatedSpan.End).Select(t => GetTextAndMarkEnd(t, ref end));
-            var tokens = lexer(new string[] { invalidatedText }.Concat(excessText));
+            var tokens = lexer(new string[] { invalidatedText }.Concat(excessText), invalidatedSpan.Start);
             foreach (var token in tokens)
             {
                 rescanned.Add(new TrackingToken(comparer.Version, token));
