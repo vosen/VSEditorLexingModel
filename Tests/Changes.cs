@@ -15,134 +15,86 @@ namespace Tests
         [Test]
         public void InsertAtStart()
         {
-            var buffer = new MockTextBuffer("ad daa \n das 12", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Insert(0, "z");
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(0, invalid.Count());
+            AssertInsertCorrectness("ad daa \n das 12", new Span(0, 0), "z");
         }
 
         [Test]
         public void InsertInsideFirstToken()
         {
-            var buffer = new MockTextBuffer("ad daa \n das 12", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Insert(1, "z");
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
+            AssertInsertCorrectness("ad daa \n das 12", new Span(1, 0), "z");
         }
 
         [Test]
         public void InsertAtTheEndOfTheFirstToken()
         {
-            var buffer = new MockTextBuffer("ad daa \n das 12", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Insert(2, "z");
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
-            Assert.AreEqual(new Span(0, 2), invalid.First().GetSpan(snapshot));
+            AssertInsertCorrectness("ad daa \n das 12", new Span(2, 0), "z");
         }
 
         [Test]
         public void InsertIntoEmpty()
         {
-            var buffer = new MockTextBuffer("", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(FakeLexer.FromSpans(new [] { new Span() }), snapshot);
-            buffer.Insert(0, "z");
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
+            AssertInsertCorrectness("", new Span(), "z");
         }
 
         [Test]
         public void ReplaceMidTokens()
         {
-            var buffer = new MockTextBuffer("ab  cd  ", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Replace(new Span(1, 4), "bc");
-            doc.ApplyVersion(buffer.CurrentSnapshot);
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(3, invalid.Count());
-            var newTokens = doc.Rescan(snapshot, invalid, args.Changes.First().Delta);
-            Assert.AreEqual(1, newTokens.Count);
-            Assert.AreEqual(0, newTokens[0].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(4, newTokens[0].Length);
+            AssertInsertCorrectness("ab  cd  ", new Span(1, 4), "bc");
         }
 
         [Test]
         public void RemoveComment()
         {
-            var buffer = new MockTextBuffer("/*  ab  cd  fg", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Replace(new Span(0, 2), "");
-            doc.ApplyVersion(buffer.CurrentSnapshot);
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
-            var newTokens = doc.Rescan(snapshot, invalid, args.Changes.First().Delta);
-            Assert.AreEqual(6, newTokens.Count);
-            Assert.AreEqual(0, newTokens[0].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[0].Length);
-            Assert.AreEqual(2, newTokens[1].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[1].Length);
-            Assert.AreEqual(4, newTokens[2].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[2].Length);
-            Assert.AreEqual(6, newTokens[3].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[3].Length);
-            Assert.AreEqual(8, newTokens[4].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[4].Length);
-            Assert.AreEqual(10, newTokens[5].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[5].Length);
+            AssertInsertCorrectness("/*  ab  cd  fg", new Span(0, 2), "");
         }
-        
+
         [Test]
         public void AddComment()
         {
-            var buffer = new MockTextBuffer("   ab  */cd  fg", (string)null);
-            var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Replace(new Span(0, 1), "/*");
-            doc.ApplyVersion(buffer.CurrentSnapshot);
-            var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
-            var newTokens = doc.Rescan(snapshot, invalid, args.Changes.First().Delta);
-            Assert.AreEqual(4, newTokens.Count);
-            Assert.AreEqual(0, newTokens[0].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(10, newTokens[0].Length);
-            Assert.AreEqual(10, newTokens[1].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[1].Length);
-            Assert.AreEqual(12, newTokens[2].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[2].Length);
-            Assert.AreEqual(14, newTokens[3].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(2, newTokens[3].Length);
+            AssertInsertCorrectness("   ab  */cd  fg", new Span(0, 1), "/*");
         }
 
         [Test]
         public void ChangeMiddleOfToken()
         {
-            var buffer = new MockTextBuffer("ab  cd  ef  ", (string)null);
+            AssertInsertCorrectness("ab  cd  ef  ", new Span(5, 0), "z");
+        }
+
+        [Test]
+        public void ReplaceAll()
+        {
+            AssertInsertCorrectness("ab  cd  ef  ", new Span(0, 12), "x");
+        }
+
+        [Test]
+        public void ReplaceMost()
+        {
+            AssertInsertCorrectness("ab  cd  ef", new Span(0, 7), "");
+        }
+
+        [Test]
+        public void ReplaceMiddle()
+        {
+            AssertInsertCorrectness("ab  cd  ef  ", new Span(5, 4), "/*");
+        }
+
+        [Test]
+        public void InsertNewAtTheEnd()
+        {
+            AssertInsertCorrectness(" a  ", new Span(3, 0), "b");
+        }
+
+        private void AssertInsertCorrectness(string text, Span replaced, string inserted)
+        {
+            var buffer = new MockTextBuffer(text, (string)null);
             var snapshot = buffer.CurrentSnapshot;
-            var doc = new LexedDocument(Lexer.Run, snapshot);
-            buffer.Replace(new Span(5, 0), "z");
-            doc.ApplyVersion(buffer.CurrentSnapshot);
+            var doc = new LexedDocument(FakeLanguage.Tokenizer.Run, snapshot);
+            buffer.Replace(replaced, inserted);
             var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
-            var invalid = doc.GetInvalidated(snapshot, args.Changes.First());
-            Assert.AreEqual(1, invalid.Count());
-            var newTokens = doc.Rescan(snapshot, invalid, args.Changes.First().Delta);
-            Assert.AreEqual(1, newTokens.Count);
-            Assert.AreEqual(4, newTokens[0].GetStart(buffer.CurrentSnapshot));
-            Assert.AreEqual(3, newTokens[0].Length);
+            doc.ApplyTextChanges(args);
+            var expectedtTokens = FakeLanguage.Tokenizer.Run(new [] { buffer.CurrentSnapshot.GetText() }, 0).Select(x => x.Span);
+            var actualTokens = doc.GetCoveringTokens(new Span(0, buffer.CurrentSnapshot.Length)).Select(x => x.GetSpan(buffer.CurrentSnapshot));
+            CollectionAssert.AreEqual(expectedtTokens, actualTokens);
         }
     }
 }

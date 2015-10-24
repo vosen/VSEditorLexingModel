@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.Text;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,54 +14,128 @@ namespace EditorChanges
         SortedSet<TrackingToken> tree;
         readonly Func<IEnumerable<string>, int, IEnumerable<SpannedToken>> lexer;
 
+        public ITextSnapshot CurrentSnapshot
+        {
+            get { return comparer.Version; }
+            set { comparer.Version = value; }
+        }
+
         public LexedDocument(Func<IEnumerable<string>, int, IEnumerable<SpannedToken>> lexer, ITextSnapshot snapshot)
         {
             this.lexer = lexer;
-            comparer.Version = snapshot;
+            CurrentSnapshot = snapshot;
             Initialize();
+        }
+
+        public TrackingToken GetCoveringToken(int point)
+        {
+            return tree.GetCoveringToken(CurrentSnapshot, point);
+        }
+
+        public IEnumerable<TrackingToken> GetCoveringTokens(Span span)
+        {
+            if(span.Length == 0)
+            {
+                if(span.Start == 0 && span.End == 0)
+                    return new TrackingToken[0];
+                return new [] { GetCoveringToken(span.Start) };
+            }
+            return tree.GetCoveringTokens(CurrentSnapshot, span);
+        }
+
+        public void ApplyTextChanges(TextContentChangedEventArgs args)
+        {
+            foreach(var change in args.Changes)
+            {
+                List<TrackingToken> forRemoval = GetInvalidated(args.Before, change);
+                // Some of the tokens marked for removal must be deleted before applying a new version,
+                // because otherwise some trackingtokens will have broken spans
+                int i = 0;
+                for(; i < forRemoval.Count; i++)
+                    tree.Remove(forRemoval[i]);
+                CurrentSnapshot = args.After;
+                IList<TrackingToken> updated = Rescan(forRemoval, args.Before, change.Delta);
+                for(; i < forRemoval.Count; i++)
+                    tree.Remove(forRemoval[i]);
+                foreach(var token in updated)
+                    tree.Add(token);
+            }
         }
 
         private void Initialize()
         {
-            tree = new SortedSet<TrackingToken>(lexer(new string[] { comparer.Version.GetText() }, 0).Select(t => new TrackingToken(comparer.Version, t)), comparer);
+            tree = new SortedSet<TrackingToken>(lexer(new string[] { CurrentSnapshot.GetText() }, 0).Select(t => new TrackingToken(CurrentSnapshot, t)), comparer);
         }
 
-        public IList<TrackingToken> GetInvalidated(ITextSnapshot oldSnapshot, ITextChange change)
+        private List<TrackingToken> GetInvalidated(ITextSnapshot oldSnapshot, ITextChange change)
         {
-            return tree.CoveringTokens(oldSnapshot, change.OldSpan);
+            return tree.GetInvalidatedBy(oldSnapshot, change.OldSpan);
         }
 
-        public IList<TrackingToken> Rescan(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
+        private IList<TrackingToken> Rescan(List<TrackingToken> forRemoval, ITextSnapshot oldSnapshot, int delta)
         {
-            Span invalidatedSpan = InvalidatedSpan(oldSnapshot, invalid, delta);
-            string invalidatedText = comparer.Version.GetText(invalidatedSpan);
-            return RescanCore(invalidatedSpan, invalidatedText);
+            Span invalidatedSpan = InvalidatedSpan(forRemoval, oldSnapshot, delta);
+            string invalidatedText = CurrentSnapshot.GetText(invalidatedSpan);
+            return RescanCore(forRemoval, invalidatedSpan, invalidatedText);
         }
 
-        private IList<TrackingToken> RescanCore(Span invalidatedSpan, string invalidatedText)
+        private IList<TrackingToken> RescanCore(List<TrackingToken> forRemoval, Span invalidatedSpan, string invalidatedText)
         {
-            int end = 0;
-            List<TrackingToken> rescanned = new List<TrackingToken>();
+            List<TrackingToken> newlyCreated = new List<TrackingToken>();
+            List<TrackingToken> removalCandidates = new List<TrackingToken>();
             // this lazy iterator walks tokens that are outside of the initial invalidation span
-            var excessText = tree.InOrderAfter(comparer.Version, invalidatedSpan.End).Select(t => GetTextAndMarkEnd(t, ref end));
+            var debug1 = tree.Select(x => x.GetSpan(CurrentSnapshot)).ToArray();
+            var debug2 = tree.InOrderAfter(CurrentSnapshot, invalidatedSpan.End).Select(x => x.GetSpan(CurrentSnapshot)).ToArray();
+            var excessText = tree.InOrderAfter(CurrentSnapshot, invalidatedSpan.End)
+                                 .Select(t => GetTextAndMarkForRemoval(t, ref removalCandidates))
+                                 .TakeWhile(s => s!= null);
             var tokens = lexer(new string[] { invalidatedText }.Concat(excessText), invalidatedSpan.Start);
             foreach (var token in tokens)
             {
-                rescanned.Add(new TrackingToken(comparer.Version, token));
-                if (token.Span.End == invalidatedSpan.End || token.Span.End == end)
+                newlyCreated.Add(new TrackingToken(CurrentSnapshot, token));
+                if (token.Span.End == invalidatedSpan.End)
+                    break;
+                if (removalCandidates.Count > 0)
+                {
+                    if (token.Span.End == removalCandidates[removalCandidates.Count - 1].GetEnd(CurrentSnapshot))
+                        break;
+                }
+            }
+            AppendInvalidTokens(forRemoval, newlyCreated, removalCandidates);
+            return newlyCreated;
+        }
+
+        private void AppendInvalidTokens(List<TrackingToken> forRemoval, List<TrackingToken> newlyCreated, List<TrackingToken> removalCandidates)
+        {
+            if (newlyCreated.Count == 0 || removalCandidates.Count == 0)
+                return;
+            int end = newlyCreated[newlyCreated.Count - 1].GetEnd(CurrentSnapshot);
+            foreach(var token in removalCandidates)
+            {
+                int tokenEnd = token.GetEnd(CurrentSnapshot);
+                if(tokenEnd > end)
+                    break;
+                forRemoval.Add(token);
+                if(tokenEnd == end)
                     break;
             }
-            return rescanned;
         }
 
-        private string GetTextAndMarkEnd(TrackingToken current, ref int end)
+        private string GetTextAndMarkForRemoval(TrackingToken current, ref List<TrackingToken> removalCandidates)
         {
-            end = current.GetEnd(comparer.Version);
-            return current.GetText(comparer.Version);
+            removalCandidates.Add(current);
+            Span span = current.GetSpan(CurrentSnapshot);
+            if(span.End > CurrentSnapshot.Length)
+                return null;
+            return current.GetText(CurrentSnapshot);
         }
 
-        private Span InvalidatedSpan(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
+        private Span InvalidatedSpan(IList<TrackingToken> invalid, ITextSnapshot oldSnapshot, int delta)
         {
+            // if the set of invalidated tokens is empty, that means we
+            // are observing text being inserted into an empty document
+            if(invalid.Count == 0)
+                return new Span(0, delta);
             int invalidationStart = invalid[0].GetStart(oldSnapshot); // this position is the same in both versions
             int invalidationEnd = GetInvalidationEnd(oldSnapshot, invalid, delta);
             return new Span(invalidationStart, invalidationEnd - invalidationStart);
@@ -69,14 +144,9 @@ namespace EditorChanges
         private int GetInvalidationEnd(ITextSnapshot oldSnapshot, IList<TrackingToken> invalid, int delta)
         {
             var oldSpan = invalid[invalid.Count - 1].GetSpan(oldSnapshot);
-            var newSpan = invalid[invalid.Count - 1].GetSpan(comparer.Version);
+            var newSpan = invalid[invalid.Count - 1].GetSpan(CurrentSnapshot);
             var tokenStartDelta = newSpan.Start - oldSpan.Start;
             return newSpan.End + delta - tokenStartDelta;
-        }
-
-        public void ApplyVersion(ITextSnapshot currentSnapshot)
-        {
-            comparer.Version = currentSnapshot;
         }
     }
 }

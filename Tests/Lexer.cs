@@ -79,7 +79,7 @@ namespace Tests
                     break;
                 current = text[idx];
             }
-            while (!char.IsWhiteSpace(current));
+            while (!char.IsWhiteSpace(current) && current != '/');
             return new SpannedToken(4, new Span(start + offset, idx - start));
         }
     }

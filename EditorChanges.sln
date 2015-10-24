@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EditorChanges", "EditorChan
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{2EC5D8A7-0F62-4441-907A-777606BD8A1F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FakeLanguage", "FakeLanguage\FakeLanguage.csproj", "{EA4BDA8E-AA29-4714-9BF3-51A402FA9264}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{2EC5D8A7-0F62-4441-907A-777606BD8A1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2EC5D8A7-0F62-4441-907A-777606BD8A1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2EC5D8A7-0F62-4441-907A-777606BD8A1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA4BDA8E-AA29-4714-9BF3-51A402FA9264}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA4BDA8E-AA29-4714-9BF3-51A402FA9264}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA4BDA8E-AA29-4714-9BF3-51A402FA9264}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA4BDA8E-AA29-4714-9BF3-51A402FA9264}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
