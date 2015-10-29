@@ -27,18 +27,18 @@ namespace EditorChanges
             Initialize();
         }
 
-        public TrackingToken GetCoveringToken(int point)
+        public TrackingToken GetToken(int point)
         {
             return tree.GetCoveringToken(CurrentSnapshot, point);
         }
 
-        public IEnumerable<TrackingToken> GetCoveringTokens(Span span)
+        public IEnumerable<TrackingToken> GetTokens(Span span)
         {
             if(span.Length == 0)
             {
                 if(span.Start == 0 && span.End == 0)
                     return new TrackingToken[0];
-                return new [] { GetCoveringToken(span.Start) };
+                return new [] { GetToken(span.Start) };
             }
             return tree.GetCoveringTokens(CurrentSnapshot, span);
         }

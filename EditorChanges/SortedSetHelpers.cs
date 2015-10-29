@@ -88,7 +88,7 @@ namespace EditorChanges
         {
             List<TrackingToken> tokens = new List<TrackingToken>();
             if (tree.Root != null)
-                FillInvalidatedTokens(tree.Root, version, span, tokens);
+                FillCoveringTokens(tree.Root, version, span, tokens);
             return tokens;
         }
 

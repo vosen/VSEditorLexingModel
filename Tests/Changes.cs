@@ -93,7 +93,7 @@ namespace Tests
             var args = new TextContentChangedEventArgs(snapshot, buffer.CurrentSnapshot, EditOptions.None, null);
             doc.ApplyTextChanges(args);
             var expectedtTokens = FakeLanguage.Tokenizer.Run(new [] { buffer.CurrentSnapshot.GetText() }, 0).Select(x => x.Span);
-            var actualTokens = doc.GetCoveringTokens(new Span(0, buffer.CurrentSnapshot.Length)).Select(x => x.GetSpan(buffer.CurrentSnapshot));
+            var actualTokens = doc.GetTokens(new Span(0, buffer.CurrentSnapshot.Length)).Select(x => x.GetSpan(buffer.CurrentSnapshot));
             CollectionAssert.AreEqual(expectedtTokens, actualTokens);
         }
     }
