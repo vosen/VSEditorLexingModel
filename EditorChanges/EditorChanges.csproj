@@ -55,8 +55,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BitHelper.cs" />
-    <Compile Include="ConstantPoint.cs" />
     <Compile Include="EnumerableHelpers.cs" />
+    <Compile Include="JoinedTextChange.cs" />
     <Compile Include="LexedDocument.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SortedSet.cs" />

@@ -84,6 +84,12 @@ namespace Tests
             AssertInsertCorrectness(" a  ", new Span(3, 0), "b");
         }
 
+        [Test]
+        public void ReplaceMulti()
+        {
+            AssertInsertCorrectness(" a ", new Span(0, 1), "ab  cd  ef  gh");
+        }
+
         private void AssertInsertCorrectness(string text, Span replaced, string inserted)
         {
             var buffer = new MockTextBuffer(text, (string)null);

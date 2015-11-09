@@ -34,32 +34,34 @@ namespace EditorChanges
 
         public IEnumerable<TrackingToken> GetTokens(Span span)
         {
-            if(span.Length == 0)
+            if (span.Length == 0)
             {
-                if(span.Start == 0 && span.End == 0)
+                if (span.Start == 0 && span.End == 0)
                     return new TrackingToken[0];
-                return new [] { GetToken(span.Start) };
+                return new[] { GetToken(span.Start) };
             }
             return tree.GetCoveringTokens(CurrentSnapshot, span);
         }
 
         public void ApplyTextChanges(TextContentChangedEventArgs args)
         {
-            foreach(var change in args.Changes)
-            {
-                List<TrackingToken> forRemoval = GetInvalidated(args.Before, change);
-                // Some of the tokens marked for removal must be deleted before applying a new version,
-                // because otherwise some trackingtokens will have broken spans
-                int i = 0;
-                for(; i < forRemoval.Count; i++)
-                    tree.Remove(forRemoval[i]);
-                CurrentSnapshot = args.After;
-                IList<TrackingToken> updated = Rescan(forRemoval, args.Before, change.Delta);
-                for(; i < forRemoval.Count; i++)
-                    tree.Remove(forRemoval[i]);
-                foreach(var token in updated)
-                    tree.Add(token);
-            }
+            ApplyTextChange(args.Before, args.After, new JoinedTextChange(args.Changes));
+        }
+
+        public void ApplyTextChange(ITextSnapshot before, ITextSnapshot after, ITextChange change)
+        {
+            List<TrackingToken> forRemoval = GetInvalidated(before, change);
+            // Some of the tokens marked for removal must be deleted before applying a new version,
+            // because otherwise some trackingtokens will have broken spans
+            int i = 0;
+            for (; i < forRemoval.Count; i++)
+                tree.Remove(forRemoval[i]);
+            CurrentSnapshot = after;
+            IList<TrackingToken> updated = Rescan(forRemoval, before, change.Delta);
+            for (; i < forRemoval.Count; i++)
+                tree.Remove(forRemoval[i]);
+            foreach (var token in updated)
+                tree.Add(token);
         }
 
         private void Initialize()
@@ -88,7 +90,7 @@ namespace EditorChanges
             var debug2 = tree.InOrderAfter(CurrentSnapshot, invalidatedSpan.End).Select(x => x.GetSpan(CurrentSnapshot)).ToArray();
             var excessText = tree.InOrderAfter(CurrentSnapshot, invalidatedSpan.End)
                                  .Select(t => GetTextAndMarkForRemoval(t, ref removalCandidates))
-                                 .TakeWhile(s => s!= null);
+                                 .TakeWhile(s => s != null);
             var tokens = lexer(new string[] { invalidatedText }.Concat(excessText), invalidatedSpan.Start);
             foreach (var token in tokens)
             {
@@ -110,13 +112,13 @@ namespace EditorChanges
             if (newlyCreated.Count == 0 || removalCandidates.Count == 0)
                 return;
             int end = newlyCreated[newlyCreated.Count - 1].GetEnd(CurrentSnapshot);
-            foreach(var token in removalCandidates)
+            foreach (var token in removalCandidates)
             {
                 int tokenEnd = token.GetEnd(CurrentSnapshot);
-                if(tokenEnd > end)
+                if (tokenEnd > end)
                     break;
                 forRemoval.Add(token);
-                if(tokenEnd == end)
+                if (tokenEnd == end)
                     break;
             }
         }
@@ -125,7 +127,7 @@ namespace EditorChanges
         {
             removalCandidates.Add(current);
             Span span = current.GetSpan(CurrentSnapshot);
-            if(span.End > CurrentSnapshot.Length)
+            if (span.End > CurrentSnapshot.Length)
                 return null;
             return current.GetText(CurrentSnapshot);
         }
@@ -134,7 +136,7 @@ namespace EditorChanges
         {
             // if the set of invalidated tokens is empty, that means we
             // are observing text being inserted into an empty document
-            if(invalid.Count == 0)
+            if (invalid.Count == 0)
                 return new Span(0, delta);
             int invalidationStart = invalid[0].GetStart(oldSnapshot); // this position is the same in both versions
             int invalidationEnd = GetInvalidationEnd(oldSnapshot, invalid, delta);
